@@ -11,7 +11,7 @@ Visualize your Discord friends network as an interactive graph where each node r
 See [here](https://gist.github.com/MarvNC/e601f3603df22f36ebd3102c501116c6) to get your user token ⚠ the first thing, not the comments with ai garbage below.
 
 > [!NOTE]
-> Once in the page, click on the `enabled` button on the `Physics` section to make the magic happen!
+> Once on the page, click on the `enabled` button on the `Physics` section to make the magic happen!
 
 
 ## Features
