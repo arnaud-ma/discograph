@@ -1,7 +1,7 @@
 [project]
 name = "discograph"
 version = "0.2.0"
-description = "Add your description here"
+description = "CLI to Visualize your Discord friends network as an interactive graph"
 readme = "README.md"
 authors = [{ name = "arnaud-ma", email = "arnaudma.code@gmail.com" }]
 license = "MIT"
@@ -13,6 +13,7 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     "cyclopts>=4.5.1",
     "networkx>=3.6.1",
+    "numpy>=2.4.1",
     "platformdirs>=4.5.1",
     "pydantic>=2.12.5",
     "pyvis>=0.3.2",
