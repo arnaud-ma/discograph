@@ -2,6 +2,7 @@ import asyncio
 import functools
 import getpass
 import logging
+import random
 import shutil
 import warnings
 import webbrowser
@@ -11,10 +12,12 @@ from typing import Annotated, Final, Literal, Self
 
 import aiohttp
 import networkx as nx
+import numpy as np
 from attr import dataclass
 from bs4 import BeautifulSoup
 from cyclopts import App, Parameter
 from cyclopts.types import StdioPath
+from networkx.algorithms.community import louvain_communities
 from platformdirs import PlatformDirs
 from pydantic import BaseModel, TypeAdapter
 from pyvis.network import Network
@@ -418,7 +421,12 @@ def expr_size(x: float, s_min: float, k: float = 2) -> float:
     return x * k + s_min
 
 
-def add_friend_node(graph: nx.Graph, friend: User, nb_connections: int) -> None:
+def add_friend_node(
+    graph: nx.Graph,
+    friend: User,
+    nb_connections: int,
+    color: str | None = None,
+) -> None:
     """
     Add a friend node to the given NetworkX graph with custom
     visualization attributes.
@@ -432,6 +440,14 @@ def add_friend_node(graph: nx.Graph, friend: User, nb_connections: int) -> None:
     The node is added with visualization attributes such as label, title,
     shape, image, size, font, color, and border width for selected state.
     """
+    node_color = {
+        "border": "black",
+        "highlight": {
+            "border": color or "blue",
+            "background": color or "lightblue",
+        },
+    }
+
     graph.add_node(
         friend.id,
         label=friend.display_name,
@@ -442,22 +458,37 @@ def add_friend_node(graph: nx.Graph, friend: User, nb_connections: int) -> None:
         image=friend.avatar_url() or "",
         size=expr_size(nb_connections, s_min=5, k=2),
         font={
-            "color": "black",
+            "color": color or "white",
             "size": 50,
-            "face": "arial",
-            "strokeWidth": 2,
+            "strokeWidth": 3,
         },
-        color={
-            "border": "black",
-            "highlight": {
-                "border": "blue",
-            },
-        },
+        color=node_color,
         borderWidthSelected=5,
     )
 
 
-def add_friends_connection(graph: nx.Graph, friend1: User, friend2: User) -> None:
+def combine_hex_values(d: dict[str, float]) -> str:
+    d_items = sorted(d.items())
+    tot_weight = sum(d.values())
+    if tot_weight == 0:
+        return "000000"
+    red = int(sum(int(k[:2], 16) * v for k, v in d_items) / tot_weight)
+    green = int(sum(int(k[2:4], 16) * v for k, v in d_items) / tot_weight)
+    blue = int(sum(int(k[4:6], 16) * v for k, v in d_items) / tot_weight)
+
+    def zpad(x):
+        return x if len(x) == 2 else "0" + x
+
+    return zpad(hex(red)[2:]) + zpad(hex(green)[2:]) + zpad(hex(blue)[2:])  # noqa: FURB116
+
+
+def add_friends_connection(
+    graph: nx.Graph,
+    friend1: User,
+    friend2: User,
+    color1: str | None,
+    color2: str | None,
+) -> None:
     """
     Add a friendship connection (edge) between two users in the given
     graph.
@@ -471,15 +502,40 @@ def add_friends_connection(graph: nx.Graph, friend1: User, friend2: User) -> Non
     The edge will include visual attributes such as color and selection
     width for visualization purposes.
     """
+    color1 = color1 or "#ffffff"
+    color2 = color2 or "#ffffff"
+    if color1 and color2 and color1 == color2:
+        color = color1
+    else:
+        # mixed colors (hex)
+        color = "#" + combine_hex_values({color1.lstrip("#"): 1, color2.lstrip("#"): 1})
+    color += "BF"
     graph.add_edge(
         friend1.id,
         friend2.id,
-        color={"color": "rgba(128,128,128,0.5)", "highlight": "red"},
+        color={"color": color, "highlight": "white"},
         selectionWidth=4,
     )
 
 
-def create_graph(mutual_friends: MutualFriends) -> nx.Graph:
+COLORS = [
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
+]
+
+
+def create_graph(
+    mutual_friends: MutualFriends,
+    community_colors: dict[str, str],
+) -> nx.Graph:
     """
     Create a NetworkX graph representing the network of friends and
     their mutual connections.
@@ -489,16 +545,19 @@ def create_graph(mutual_friends: MutualFriends) -> nx.Graph:
     Args:
         mutual_friends (MutualFriends): An object containing the friends
         table and their mutual friends mapping.
+        community_colors (dict[str, str]): Mapping from user IDs to their
+        community colors.
 
     Returns:
         nx.Graph: A NetworkX graph representing the friends network.
     """
     logger.info("Creating graph", extra={"friends_count": len(mutual_friends)})
-    graph = nx.Graph()
+    graph: nx.Graph = nx.Graph()
 
     for friend_id, friend in mutual_friends.friends_table.items():
         mutuals = mutual_friends.mutual_friends.get(friend_id, set())
-        add_friend_node(graph, friend, nb_connections=len(mutuals))
+        color = community_colors.get(friend_id)
+        add_friend_node(graph, friend, nb_connections=len(mutuals), color=color)
 
         for mutual_friend_id in mutuals:
             if mutual_friend_id not in mutual_friends.friends_table:
@@ -514,7 +573,13 @@ def create_graph(mutual_friends: MutualFriends) -> nx.Graph:
                 continue  # avoid duplicate edges (A-B and B-A)
 
             mutual_friend = mutual_friends.friends_table[mutual_friend_id]
-            add_friends_connection(graph, friend, mutual_friend)
+            add_friends_connection(
+                graph,
+                friend,
+                mutual_friend,
+                color,
+                community_colors.get(mutual_friend_id),
+            )
 
     logger.info(
         "Graph created",
@@ -523,24 +588,63 @@ def create_graph(mutual_friends: MutualFriends) -> nx.Graph:
     return graph
 
 
-def create_network_graph(mutual_friends: MutualFriends) -> Network:
+def detect_communities(mutual_friends: MutualFriends) -> dict[str, str]:
     """
-    Create and configure a network visualization from a given
-    MutualFriends object.
-
-    Hard-code some visualization parameters and provides interactive
-    buttons for manipulation and physics options.
+    Detect communities in the mutual friends network using Louvain algorithm.
 
     Args:
-        mutual_friends (MutualFriends): The data structure containing
-            information about mutual friends to visualize.
+        mutual_friends (MutualFriends): An object containing the friends
+            table and their mutual friends mapping.
 
     Returns:
-        Network: A configured Network object ready for display or further manipulation.
+        Mapping from user IDs to their community colors
     """
+    temp_graph: nx.Graph = nx.Graph()
+    for friend_id in mutual_friends.friends_table:
+        if len(mutual_friends.mutual_friends.get(friend_id, set())) != 0:
+            temp_graph.add_node(friend_id)
+
+    for friend_id, mutuals in mutual_friends.mutual_friends.items():
+        for mutual_friend_id in mutuals:
+            if (
+                mutual_friend_id in mutual_friends.friends_table
+                and mutual_friend_id > friend_id
+            ):
+                temp_graph.add_edge(friend_id, mutual_friend_id)
+
+    communities = list(louvain_communities(temp_graph, resolution=1.2))
+
+    if len(communities) > len(COLORS):
+        msg = (
+            "Number of detected communities exceeds available colors."
+            f" Detected: {len(communities)}, Available: {len(COLORS)}"
+        )
+        raise ValueError(msg)
+
+    community_colors = {}
+    for i, community in enumerate(communities):
+        for member_id in community:
+            community_colors[member_id] = COLORS[i]
+
+    return community_colors
+
+
+def create_network_graph(
+    mutual_friends: MutualFriends,
+    *,
+    notebook=False,
+) -> Network:
     logger.info("Creating network visualization")
-    graph = create_graph(mutual_friends)
-    nt = Network(width="60%")  # limited width to set option buttons on the right side
+
+    community_colors = detect_communities(mutual_friends)
+    graph = create_graph(mutual_friends, community_colors)
+
+    # Create network
+    nt: Network = Network(
+        width="100%",
+        notebook=notebook,
+        cdn_resources="in_line" if notebook else "local",
+    )
     nt.from_nx(graph)
     nt.toggle_physics(status=False)
     nt.force_atlas_2based(
@@ -553,10 +657,6 @@ def create_network_graph(mutual_friends: MutualFriends) -> Network:
     )
     nt.show_buttons(
         filter_=[
-            # "nodes",
-            # "edges",
-            # "layout",
-            # "interaction",
             "manipulation",
             "physics",
             "selection",
@@ -582,6 +682,26 @@ def write_html_graph(network: Network, path: StdioPath) -> None:
     file_div = file.div
     if file_div is not None:
         file_div.unwrap()
+
+    dark_css = """
+    <style>
+    body {
+        background: black !important;
+        color: white !important;
+    }
+    #mynetwork {
+        background: black !important;
+    }
+    .vis-configuration {
+        background: black !important;
+        color: white !important;
+        border-color: #444 !important;
+    }
+    </style>
+    """
+    if file.head is not None:
+        file.head.append(BeautifulSoup(dark_css, "html.parser"))
+
     path.write_text(str(file), encoding="utf-8")
     logger.info("Successfully wrote HTML graph", extra={"path": str(path)})
 
@@ -592,12 +712,25 @@ def write_html_graph(network: Network, path: StdioPath) -> None:
 app = App()
 
 
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)  # noqa: NPY002
+
+
 # Flatten the namespace, i.e. will be "--logging-level"
 # instead of "--common-params.logging-level"
 @Parameter(name="*")
 @dataclass
 class CommonParams:
+    """
+    Args:
+        logging_level (Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]):
+            The logging level to use for the application.
+        seed (int): The random seed to use for reproducibility.
+    """
+
     logging_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "WARNING"
+    seed: int = 1
 
 
 class FailedToDownloadError(Exception):
@@ -625,6 +758,7 @@ def download(
     """
     if common_params is None:
         common_params = CommonParams()
+    set_seed(common_params.seed)
 
     logger.setLevel(common_params.logging_level)
 
@@ -702,6 +836,7 @@ def graph(
     """  # noqa: DOC102
     if common_params is None:
         common_params = CommonParams()
+    set_seed(common_params.seed)
     logger.setLevel(common_params.logging_level)
 
     if input_ is None:
@@ -715,7 +850,6 @@ def graph(
 
     network = create_network_graph(mutual_friends)
     write_html_graph(network, output)
-    logger.info("Application completed successfully")
 
 
 @app.command
@@ -782,6 +916,7 @@ def default_command(  # noqa: PLR0913
     """
     if common_params is None:
         common_params = CommonParams()
+    set_seed(common_params.seed)
     logger.setLevel(common_params.logging_level)
 
     if data_path is None:
