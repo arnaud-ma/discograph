@@ -7,6 +7,7 @@ import shutil
 import warnings
 import webbrowser
 from collections.abc import Sized
+from enum import IntEnum
 from os import getenv
 from typing import Annotated, Final, Literal, Self
 
@@ -95,10 +96,20 @@ def get_config_value(
 type AvatarSize = Literal[16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 
 
+class RelationShipType(IntEnum):
+    none = 0
+    friend = 1
+    blocked = 2
+    implicit = 3
+    pending_incoming = 4
+    pending_outgoing = 5
+
+
 class UserResponse(BaseModel):
     id: str
     nickname: str | None
     user: User
+    type: RelationShipType
 
 
 UsersResponse = TypeAdapter(list[UserResponse])
@@ -227,17 +238,18 @@ async def get_friends_dict(
     session: aiohttp.ClientSession,
     user_secret: str,
 ) -> dict[str, User] | None:
-    """
-    Fetch the user's friends list from the Discord API and returns a
+    """Fetch the user's friends list from the Discord API and returns a
     dictionary mapping user IDs to friend (user) objects.
 
     Args:
         session (aiohttp.ClientSession): An active aiohttp session used
         to make HTTP requests.
+        user_secret (str): The user's authorization token for the Discord API.
 
     Returns:
         dict: A dictionary where the keys are user IDs
         and the values are friend objects.
+
     """
     link = rf"{DISCORD_API_LINK}/users/@me/relationships"
     headers = {"authorization": user_secret}
@@ -255,17 +267,22 @@ async def get_friends_dict(
             return None
         friends_data = await response.json()
 
-    friends = UsersResponse.validate_python(friends_data)
-    logger.info("Successfully fetched friends", extra={"count": len(friends)})
+    user_with_relationship = UsersResponse.validate_python(friends_data)
+    friends = [
+        fr for fr in user_with_relationship if fr.type == RelationShipType.friend
+    ]
+    logger.info(
+        "Successfully fetched friends",
+        extra={"count": len(friends)},
+    )
     return {friend.user.id: friend.user for friend in friends}
 
 
 class MutualFriends(BaseModel, Sized):
-    """
-    Represent a structure for managing users and their mutual friends within a network.
-    It contains two tables: one for storing user information and another
-    for storing mutual friends. Is a sized collection, the size being
-    the number of users.
+    """Represent a structure for managing users and their mutual friends
+    within a network. It contains two tables: one for storing user
+    information and another for storing mutual friends. Is a sized
+    collection, the size being the number of users.
 
     Attributes:
         friends_table (dict[str, User]): A mapping from user IDs to User objects.
@@ -281,6 +298,7 @@ class MutualFriends(BaseModel, Sized):
         fetch(session, *, progress=True):
             Asynchronously fetches the user's friends and their mutual friends,
             returning a MutualFriends instance. Optionally displays a progress bar.
+
     """
 
     friends_table: dict[str, User]
@@ -295,8 +313,7 @@ class MutualFriends(BaseModel, Sized):
         *,
         progress: bool = True,
     ) -> Self:
-        """
-        Asynchronously construct a MutualFriends instance from a dictionary of
+        """Asynchronously construct a MutualFriends instance from a dictionary of
         UserResponse objects, fetching each user's mutual friends using the
         provided aiohttp session. Optionally displays a progress bar.
 
@@ -315,6 +332,7 @@ class MutualFriends(BaseModel, Sized):
         Returns:
             MutualFriends: An instance of MutualFriends containing the users
             and their mutual friends.
+
         """
         logger.info(
             "Starting to fetch mutual friends",
@@ -366,13 +384,13 @@ class MutualFriends(BaseModel, Sized):
         *,
         progress: bool = True,
     ) -> Self | None:
-        """
-        Asynchronously fetch and construct an instance of the class using
+        """Asynchronously fetch and construct an instance of the class using
         friends data.
 
         Args:
             session (aiohttp.ClientSession): The aiohttp session to use for
                 HTTP requests.
+            user_secret (str): The user's authorization token for the Discord API.
             progress (bool, optional): Whether to display progress information.
                 Defaults to True.
 
@@ -405,8 +423,7 @@ class MutualFriends(BaseModel, Sized):
 
 
 def expr_size(x: float, s_min: float, k: float = 2) -> float:
-    """
-    Calculate the expression size based on input value, minimum size,
+    """Calculate the expression size based on input value, minimum size,
     and a scaling factor.
 
     Args:
@@ -417,6 +434,7 @@ def expr_size(x: float, s_min: float, k: float = 2) -> float:
 
     Returns:
         int or float: The calculated expression size as (x * k + s_min).
+
     """
     return x * k + s_min
 
@@ -427,11 +445,11 @@ def add_friend_node(
     nb_connections: int,
     color: str | None = None,
 ) -> None:
-    """
-    Add a friend node to the given NetworkX graph with custom
+    """Add a friend node to the given NetworkX graph with custom
     visualization attributes.
 
-    Parameters:
+    Parameters
+    ----------
         graph (nx.Graph): The NetworkX graph to which the friend node will be added.
         friend (User): The user object representing the friend.
         nb_connections (int): The number of connections the friend has,
@@ -439,6 +457,7 @@ def add_friend_node(
 
     The node is added with visualization attributes such as label, title,
     shape, image, size, font, color, and border width for selected state.
+
     """
     node_color = {
         "border": "black",
@@ -489,18 +508,23 @@ def add_friends_connection(
     color1: str | None,
     color2: str | None,
 ) -> None:
-    """
-    Add a friendship connection (edge) between two users in the given
+    """Add a friendship connection (edge) between two users in the given
     graph.
 
-    Parameters:
+    Parameters
+    ----------
         graph (nx.Graph): The NetworkX graph to which the friendship
             connection will be added.
         friend1 (User): The first user in the friendship connection.
         friend2 (User): The second user in the friendship connection.
+        color1 (str | None): The color associated with the first user.
+            If None, defaults to white.
+        color2 (str | None): The color associated with the second user.
+            If None, defaults to white.
 
     The edge will include visual attributes such as color and selection
     width for visualization purposes.
+
     """
     color1 = color1 or "#ffffff"
     color2 = color2 or "#ffffff"
@@ -536,8 +560,7 @@ def create_graph(
     mutual_friends: MutualFriends,
     community_colors: dict[str, str],
 ) -> nx.Graph:
-    """
-    Create a NetworkX graph representing the network of friends and
+    """Create a NetworkX graph representing the network of friends and
     their mutual connections.
     Each friend is added as a node to the graph, and an edge is created
     between friends who share a mutual connection.
@@ -550,6 +573,7 @@ def create_graph(
 
     Returns:
         nx.Graph: A NetworkX graph representing the friends network.
+
     """
     logger.info("Creating graph", extra={"friends_count": len(mutual_friends)})
     graph: nx.Graph = nx.Graph()
@@ -589,8 +613,7 @@ def create_graph(
 
 
 def detect_communities(mutual_friends: MutualFriends) -> dict[str, str]:
-    """
-    Detect communities in the mutual friends network using Louvain algorithm.
+    """Detect communities in the mutual friends network using Louvain algorithm.
 
     Args:
         mutual_friends (MutualFriends): An object containing the friends
@@ -598,6 +621,7 @@ def detect_communities(mutual_friends: MutualFriends) -> dict[str, str]:
 
     Returns:
         Mapping from user IDs to their community colors
+
     """
     temp_graph: nx.Graph = nx.Graph()
     for friend_id in mutual_friends.friends_table:
@@ -668,13 +692,14 @@ def create_network_graph(
 
 
 def write_html_graph(network: Network, path: StdioPath) -> None:
-    """
-    Generate the HTML representation of the network graph and writes
+    """Generate the HTML representation of the network graph and writes
     it to the specified file path.
 
-    Parameters:
+    Parameters
+    ----------
         network (Network): The network graph to be converted to HTML.
         path (Path): The file path where the HTML content will be saved.
+
     """
     logger.info("Writing HTML graph", extra={"path": str(path)})
     file = network.generate_html()
@@ -722,11 +747,11 @@ def set_seed(seed: int) -> None:
 @Parameter(name="*")
 @dataclass
 class CommonParams:
-    """
-    Args:
-        logging_level (Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]):
-            The logging level to use for the application.
-        seed (int): The random seed to use for reproducibility.
+    """Args:
+    logging_level (Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]):
+        The logging level to use for the application.
+    seed (int): The random seed to use for reproducibility.
+
     """
 
     logging_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "WARNING"
@@ -755,6 +780,7 @@ def download(
         operating system's cache directory. Can use "-" for stdout.
     progress:
         Whether to show progress bars during data fetching.
+
     """
     if common_params is None:
         common_params = CommonParams()
@@ -833,6 +859,7 @@ def graph(
     output:
         The path to save the generated HTML graph. Default is in the operating
         system's cache directory. Can use "-" for stdout.
+
     """  # noqa: DOC102
     if common_params is None:
         common_params = CommonParams()
@@ -860,6 +887,7 @@ def clear(*, all_version: bool = False) -> None:
     ----------
     all_version:
         Clear everything, including files from previous versions.
+
     """
     if all_version:
         dir_path = DIRS.user_cache_path.parent
@@ -889,8 +917,7 @@ def default_command(  # noqa: PLR0913
     progress: bool = True,
     common_params: CommonParams | None = None,
 ) -> None:
-    """
-    Save your Discord mutual friends and visualize them as a graph.
+    """Save your Discord mutual friends and visualize them as a graph.
 
     The default behavior is to download the mutual friends data
     (if not already present) and generate the HTML graph, then open it
@@ -913,6 +940,7 @@ def default_command(  # noqa: PLR0913
         the shell variable.
     progress:
         Show progress bars during data fetching.
+
     """
     if common_params is None:
         common_params = CommonParams()
