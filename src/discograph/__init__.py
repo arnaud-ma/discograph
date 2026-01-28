@@ -27,7 +27,7 @@ from tqdm.std import TqdmExperimentalWarning
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
 APP_NAME = "discograph"
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 DIRS = PlatformDirs(APP_NAME, version=__version__)
 DIRS.user_state_path.mkdir(parents=True, exist_ok=True)
