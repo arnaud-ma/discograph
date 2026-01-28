@@ -13,7 +13,6 @@ from typing import Annotated, Final, Literal, Self
 
 import aiohttp
 import networkx as nx
-import numpy as np
 from attr import dataclass
 from bs4 import BeautifulSoup
 from cyclopts import App, Parameter
@@ -739,7 +738,6 @@ app = App()
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
-    np.random.seed(seed)  # noqa: NPY002
 
 
 # Flatten the namespace, i.e. will be "--logging-level"
