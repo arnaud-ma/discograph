@@ -320,17 +320,23 @@ class MutualFriends(BaseModel, Sized):
         to avoid hitting rate limits imposed by the Discord API
         (e.g. cloudflare ip ban).
 
-        Args:
-            session (aiohttp.ClientSession): An active aiohttp session used
-            to make HTTP requests.
-            friends (dict[str, UserResponse]): A dictionary mapping user IDs to
-            UserResponse objects (taken from get_friends_dict).
-            progress (bool, optional): Whether to display a progress bar during
-            the fetching process. Defaults to True.
+        Parameters
+        ----------
+        session: aiohttp.ClientSession
+            An active aiohttp session used to make discord API requests.
+        user_secret: str
+            The user's authorization token for the Discord API.
+        friends: dict[str, UserResponse]
+            A dictionary mapping user IDs to UserResponse objects
+            (taken from get_friends_dict).
+        progress: bool, optional
+            Whether to display a progress bar during the fetching process.
+            Defaults to True.
 
-        Returns:
-            MutualFriends: An instance of MutualFriends containing the users
-            and their mutual friends.
+        Returns
+        -------
+        An instance of MutualFriends containing the users and their
+        mutual friends.
 
         """
         logger.info(
@@ -447,15 +453,21 @@ def add_friend_node(
     """Add a friend node to the given NetworkX graph with custom
     visualization attributes.
 
-    Parameters
-    ----------
-        graph (nx.Graph): The NetworkX graph to which the friend node will be added.
-        friend (User): The user object representing the friend.
-        nb_connections (int): The number of connections the friend has,
-            used to determine node size and display information.
-
     The node is added with visualization attributes such as label, title,
     shape, image, size, font, color, and border width for selected state.
+
+    Parameters
+    ----------
+    graph: networkx.Graph
+        The NetworkX graph to which the friend node will be added.
+    friend: User
+        The user object representing the friend.
+    nb_connections: int
+        The number of connections the friend has, used to determine
+        node size and display information.
+    color: str
+        The color (in hex format) to use for the node. Defaults is blue
+        for highlight and lightblue for background.
 
     """
     node_color = {
@@ -512,14 +524,16 @@ def add_friends_connection(
 
     Parameters
     ----------
-        graph (nx.Graph): The NetworkX graph to which the friendship
-            connection will be added.
-        friend1 (User): The first user in the friendship connection.
-        friend2 (User): The second user in the friendship connection.
-        color1 (str | None): The color associated with the first user.
-            If None, defaults to white.
-        color2 (str | None): The color associated with the second user.
-            If None, defaults to white.
+    graph: networkx.Graph
+        The NetworkX graph to which the friendship connection will be added.
+    friend1: User
+        The first user in the friendship connection.
+    friend2: User
+        The second user in the friendship connection.
+    color1: str
+        The color (in hex format) associated with the first user. Defaults to white.
+    color2: str
+        The color (in hex format) associated with the second user. Defaults to white.
 
     The edge will include visual attributes such as color and selection
     width for visualization purposes.
@@ -696,8 +710,10 @@ def write_html_graph(network: Network, path: StdioPath) -> None:
 
     Parameters
     ----------
-        network (Network): The network graph to be converted to HTML.
-        path (Path): The file path where the HTML content will be saved.
+    network: Network
+        The network graph to be converted to HTML.
+    path: Path
+        The file path where the HTML content will be saved.
 
     """
     logger.info("Writing HTML graph", extra={"path": str(path)})
@@ -776,8 +792,14 @@ def download(
     path:
         The path to save the mutual friends JSON data. Default is in the
         operating system's cache directory. Can use "-" for stdout.
+    user_secret:
+        The discord user secret token to use for fetching data. Takes precedence over
+        the shell `DISCORD_USER_SECRET` variable.
     progress:
         Whether to show progress bars during data fetching.
+    common_params:
+        Common parameters used across commands.
+
 
     """
     if common_params is None:
@@ -851,14 +873,16 @@ def graph(
 
     Parameters
     ----------
-    input:
+    input_:
         The path to read the mutual friends JSON data. Default is in the
         operating system's cache directory. Can use "-" for stdin.
     output:
         The path to save the generated HTML graph. Default is in the operating
         system's cache directory. Can use "-" for stdout.
+    common_params:
+        Common parameters used across commands.
 
-    """  # noqa: DOC102
+    """
     if common_params is None:
         common_params = CommonParams()
     set_seed(common_params.seed)
@@ -938,6 +962,8 @@ def default_command(  # noqa: PLR0913
         the shell variable.
     progress:
         Show progress bars during data fetching.
+    common_params:
+        Common parameters used across commands.
 
     """
     if common_params is None:
