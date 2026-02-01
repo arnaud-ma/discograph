@@ -108,7 +108,7 @@ def add_friend_node(
         font={
             "color": default_font_color,
             "size": 50,
-            "strokeWidth": 4,
+            "strokeWidth": 2,
         },
         color=node_color,
         borderWidthSelected=5,

@@ -2,13 +2,42 @@
 
 Visualize your Discord friends network as an interactive graph where each node represents a friend and edges represent mutual friends.
 
+## Very small summary
+1. Grab your Discord user token from [this link](https://gist.github.com/MarvNC/e601f3603df22f36ebd3102c501116c6) (the first method at the top, not the AI-generated garbage in the comments below).
+
+2. Open a terminal
+
+3. Install `uv` if not already installed:
+
+	Windows:
+	```
+	powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+	```
+
+   macOS/Linux:
+	```
+	curl -LsSf https://astral.sh/uv/install.sh | sh
+	```
+
+	Then restart your terminal (quit and reopen it).
+
+4. Run the app:
+   ```
+   uvx discograph
+   ```
+   And paste your user token if asked.
+
+5. Once the graph is generated and opened, click on the `enabled` button on the `Physics` section.
+
+## Important security warning
+
 > [!CAUTION]
 > This tool uses your Discord user token since it's the only way to access your common friends for any give friend.
 >
 > 1. NEVER, under any circumstance, share your user token with anyone as it would give them full access to your account. It also means you are trusting this tool or have reviewed its code to ensure it is safe.
 > 2. Using this is against Discord's Terms of Service. Use at your own risk. For a single personal use, I don't think there is much risk, but be aware of it.
 
-See [here](https://gist.github.com/MarvNC/e601f3603df22f36ebd3102c501116c6) to get your user token ⚠ the first thing, not the comments with ai garbage below.
+See [this link](https://gist.github.com/MarvNC/e601f3603df22f36ebd3102c501116c6) to get your user token. The first method at the top, not the AI-generated garbage in the comments below.
 
 > [!NOTE]
 > Once on the page, click on the `enabled` button on the `Physics` section to make the magic happen!
@@ -57,6 +86,7 @@ The most basic and common usage is just the bare command:
 ```bash
 discograph
 ```
+
 it will:
 - ask for your Discord user token
 - download your friends and their mutual friends if not already downloaded
@@ -100,7 +130,7 @@ Except that the first one uses the cache paths, while the two others use the cur
 
 ## Documentation
 
-Output help messagges for all commands:
+Output help messages for all commands:
 
 ```bash
 $ discograph --help
@@ -172,3 +202,20 @@ Clear the cached data files.
 │ --all-version --no-all-version  Clear everything, including files from previous versions. [default: False]        │
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+
+## Possible improvements
+
+- Currently, some values are hardcoded and are bad values for e.g. small networks:
+    - node size
+    - edge transparency
+    - font size
+
+  A "just work" solution would be to inject some buttons/sliders in the interactive graph to tweak those values on the fly.
+  Also, maybe adjust those values based on the number of nodes/edges/clusters detected.
+
+- Add a way to export the graph to other formats:
+    - static image (png, jpg, svg, etc.)
+	- graph formats (gexf, graphml, etc.) for further analysis in dedicated tools
+
+  Some of those formats would require downloading the avatars instead of hotlinking them in
+  the HTML.
