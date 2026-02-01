@@ -2,12 +2,15 @@ import asyncio
 import warnings
 from collections.abc import Sized
 from enum import IntEnum
-from typing import Literal, NamedTuple, Self
+from typing import Literal, NamedTuple, Self, TYPE_CHECKING
 
 import aiohttp
 from pydantic import BaseModel, TypeAdapter
 
 from .config import DISCORD_API_LINK
+
+if TYPE_CHECKING:
+    import logging
 
 type AvatarSize = Literal[16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 
@@ -229,9 +232,9 @@ class MutualFriends(BaseModel, Sized):
         friends: dict[str, User],
         *,
         progress: bool = True,
+        logger: logging.Logger | None = None,
     ) -> Self:
-        """
-        Create a MutualFriends instance by fetching mutual friends for each friend.
+        """Create a MutualFriends instance by fetching mutual friends for each friend.
 
         Parameters
         ----------
@@ -241,8 +244,10 @@ class MutualFriends(BaseModel, Sized):
             The user's authorization token.
         friends : dict[str, User]
             A dictionary mapping user IDs to User objects representing the friends.
-        progress : bool, optional
-            Whether to show progress bars during data fetching. Default is True.
+        progress : bool, default: True
+            Whether to show progress bars during data fetching.
+        logger : logging.Logger | None, optional
+            If provided, log debug information about the fetching process.
 
         Returns
         -------
@@ -256,6 +261,7 @@ class MutualFriends(BaseModel, Sized):
         excessive requests in a very short time may lead to rate limiting
         or temporary bans. So always use this method sequentially with some delay
         between requests to be safe.
+
         """
         from tqdm.rich import tqdm  # noqa: PLC0415
         from tqdm.std import TqdmExperimentalWarning  # noqa: PLC0415
@@ -285,6 +291,13 @@ class MutualFriends(BaseModel, Sized):
                 mutual_ids={mf.id for mf in mutual_friends},
             )
             mutuals_by_friend[friend.id] = friends_data[friend.id].mutual_ids
+            if logger:
+                logger.debug(
+                    "Fetched %d mutual friends for user %s (%s)",
+                    len(mutual_friends),
+                    friend.id,
+                    friend.display_name,
+                )
         return cls(friends=friends_data)
 
     @classmethod
@@ -294,9 +307,9 @@ class MutualFriends(BaseModel, Sized):
         user_secret: str,
         *,
         progress: bool = True,
+        logger: logging.Logger | None = None,
     ) -> Self | None:
-        """
-        Fetch mutual friends data for the user.
+        """Fetch mutual friends data for the user.
 
         Parameters
         ----------
@@ -306,6 +319,8 @@ class MutualFriends(BaseModel, Sized):
             The user's authorization token.
         progress : bool, optional
             Whether to show progress bars during data fetching. Default is True.
+        logger : logging.Logger | None, optional
+            If provided, log debug information about the fetching process.
 
         Returns
         -------
@@ -320,11 +335,18 @@ class MutualFriends(BaseModel, Sized):
         excessive requests in a very short time may lead to rate limiting
         or temporary bans. So always use this method sequentially with some delay
         between requests to be safe.
+
         """
         friends = await get_friends_dict(session, user_secret)
         if friends is None:
             return None
-        return await cls.from_friends(session, user_secret, friends, progress=progress)
+        return await cls.from_friends(
+            session,
+            user_secret,
+            friends,
+            progress=progress,
+            logger=logger,
+        )
 
     def __len__(self) -> int:
         return len(self.friends)

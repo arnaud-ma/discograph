@@ -101,12 +101,13 @@ def download(
 
     logger.info("Token acquired, starting download of mutual friends data")
 
-    async def runner() -> None:
+    async def runner() -> MutualFriends:
         async with aiohttp.ClientSession() as session:
             mutual_friends = await MutualFriends.fetch(
                 session,
                 progress=progress,
                 user_secret=secret,
+                logger=logger,
             )
             if mutual_friends is None:
                 logger.error("Failed to fetch mutual friends data")
@@ -115,22 +116,25 @@ def download(
                 "Successfully fetched %d mutual friends. Saving to JSON...",
                 len(mutual_friends),
             )
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                mutual_friends.model_dump_json(),
-                encoding="utf-8",
-            )
-            logger.info(
-                "Saved %d mutual friends to %s",
-                len(mutual_friends),
-                path,
-            )
+        return mutual_friends
 
     try:
-        asyncio.run(runner())
+        mutual_friends = asyncio.run(runner())
     except FailedToDownloadError:
         logger.warning("Failed to download mutual friends data, retrying...")
         download(path, user_secret, progress=progress, common_params=common_params)
+        return None
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        mutual_friends.model_dump_json(),
+        encoding="utf-8",
+    )
+    logger.info(
+        "Saved %d mutual friends to %s",
+        len(mutual_friends),
+        path,
+    )
     return None
 
 
@@ -176,7 +180,7 @@ def graph(
 
     if output is None:
         output = StdioPath(DIRS.user_cache_path / "graph.html")
-    logger.info("Output HTML graph will be saved to %s", output)
+    logger.info("Output graph will be saved to %s", output)
 
     try:
         mutual_friends = MutualFriends.model_validate_json(

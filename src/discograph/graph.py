@@ -128,6 +128,7 @@ def combine_hex_values(d: dict[str, float]) -> str:
     -------
     str
         Combined hex color value without # prefix.
+
     """
     tot_weight = sum(d.values())
     if tot_weight == 0:
@@ -215,6 +216,7 @@ def create_graph(mutual_friends: MutualFriends) -> tuple[nx.Graph, dict[str, str
     ------
     ValueError
         If the number of detected communities exceeds the number of available colors.
+
     """
     graph: nx.Graph = nx.Graph()
     edges = [
@@ -260,8 +262,7 @@ def create_graph(mutual_friends: MutualFriends) -> tuple[nx.Graph, dict[str, str
 
 
 def create_network(graph: nx.Graph, *, notebook=False) -> Network:
-    """
-    Create a pyvis Network object from a NetworkX graph with specific
+    """Create a pyvis Network object from a NetworkX graph with specific
     visualization settings.
 
     Parameters
@@ -275,6 +276,7 @@ def create_network(graph: nx.Graph, *, notebook=False) -> Network:
     -------
     Network
         The pyvis Network object representing the graph.
+
     """
     nt: Network = Network(
         width="100%",
@@ -305,6 +307,7 @@ def write_html_graph(network: Network, path: Path) -> None:
         The pyvis Network object representing the graph to export.
     path : Path
         The file path where the HTML graph will be saved.
+
     """
     file = network.generate_html()
     file = BeautifulSoup(file, "html.parser")
