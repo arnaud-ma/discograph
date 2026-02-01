@@ -1,6 +1,6 @@
 [project]
 name = "discograph"
-version = "0.2.3"
+version = "0.2.4"
 description = "CLI to Visualize your Discord friends network as an interactive graph"
 readme = "README.md"
 authors = [{ name = "arnaud-ma", email = "arnaudma.code@gmail.com" }]

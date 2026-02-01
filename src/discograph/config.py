@@ -8,7 +8,7 @@ import os
 from platformdirs import PlatformDirs
 
 APP_NAME = "discograph"
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 DIRS = PlatformDirs(APP_NAME, version=__version__)
 DIRS.user_state_path.mkdir(parents=True, exist_ok=True)
