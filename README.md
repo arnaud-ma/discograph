@@ -129,7 +129,7 @@ then open it in the default web browser.
 │ --redownload --update --no-redownload  Redownload the data from the Discord API, even if it already exists.       │
 │   --no-update                          [default: False]                                                           │
 │ --progress --no-progress               Show progress bars during data fetching. [default: True]                   │
-│ --logging-level                        [choices: DEBUG, INFO, WARNING, ERROR, CRITICAL] [default: WARNING]        │
+│ --loglevel                        [choices: DEBUG, INFO, WARNING, ERROR, CRITICAL] [default: WARNING]        │
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -144,7 +144,7 @@ Download the mutual friends data from the Discord API and save it to JSON.
 │                            cache directory. Can use "-" for stdout.                                               │
 │ USER-SECRET --user-secret                                                                                         │
 │ --progress --no-progress   Whether to show progress bars during data fetching. [default: True]                    │
-│ --logging-level            [choices: DEBUG, INFO, WARNING, ERROR, CRITICAL] [default: WARNING]                    │
+│ --loglevel            [choices: DEBUG, INFO, WARNING, ERROR, CRITICAL] [default: WARNING]                    │
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -158,7 +158,7 @@ Create the friends network graph HTML from the mutual friends JSON data.
 │ INPUT --input -i                                                                                                  │
 │ OUTPUT --output -o             The path to save the generated HTML graph. Default is in the operating system's    │
 │                                cache directory. Can use "-" for stdout.                                           │
-│ LOGGING-LEVEL --logging-level  [choices: DEBUG, INFO, WARNING, ERROR, CRITICAL] [default: WARNING]                │
+│ loglevel --loglevel  [choices: DEBUG, INFO, WARNING, ERROR, CRITICAL] [default: WARNING]                │
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 

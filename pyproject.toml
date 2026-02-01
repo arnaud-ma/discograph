@@ -13,7 +13,7 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     "cyclopts>=4.5.1",
     "networkx>=3.6.1",
-"platformdirs>=4.5.1",
+    "platformdirs>=4.5.1",
     "pydantic>=2.12.5",
     "pyvis>=0.3.2",
     "rich>=14.3.1",
@@ -27,7 +27,7 @@ issues = "https://github.com/arnaud-ma/discograph/issues"
 documentation = "https://github.com/arnaud-ma/discograph/blob/main/README.md"
 
 [project.scripts]
-discograph = "discograph:main"
+discograph = "discograph.app:run"
 
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
